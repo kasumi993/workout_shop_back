@@ -1,23 +1,47 @@
-// src/database/seeds/create-admin-user.seed.ts
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { User } from '../../users/entities/user.entity';
-import { Connection } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
-export const createAdminUser = async (connection: Connection) => {
-  const adminEmail = 'khadijag993@gmail.com';
-  const userRepository = connection.getRepository(User);
-  const existingAdmin = await userRepository.findOne({
-    where: { email: adminEmail },
-  });
+@Injectable()
+export class SeedService implements OnModuleInit {
+  private readonly logger = new Logger(SeedService.name);
 
-  if (!existingAdmin) {
-    const password = await bcrypt.hash('admin', 10);
-    await userRepository.save({
-      name: 'Admin User',
-      email: adminEmail,
-      password,
-      isAdmin: true,
-    });
-    console.log('Admin user created');
+  constructor(
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    private configService: ConfigService,
+  ) {}
+
+  async onModuleInit() {
+    await this.createAdminUser();
   }
-};
+
+  async createAdminUser() {
+    const adminEmail =
+      this.configService.get<string>('ADMIN_EMAIL') || 'khadijag993@gmail.com';
+    const adminPassword =
+      this.configService.get<string>('ADMIN_PASSWORD') || 'admin';
+
+    const existingAdmin = await this.userRepository.findOne({
+      where: { email: adminEmail },
+    });
+
+    if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+      await this.userRepository.save({
+        name: 'Admin User',
+        email: adminEmail,
+        password: hashedPassword,
+        isAdmin: true,
+      });
+
+      this.logger.log('Admin user created successfully');
+    } else {
+      this.logger.log('Admin user already exists');
+    }
+  }
+}

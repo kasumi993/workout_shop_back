@@ -27,10 +27,10 @@ export class Product {
   images: string[];
 
   @ManyToOne(() => Category, { nullable: true })
-  category: Category;
+  category: Category | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  properties: Record<string, any>;
+  properties: Record<string, any> | null;
 
   @CreateDateColumn()
   createdAt: Date;
