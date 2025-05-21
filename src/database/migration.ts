@@ -1,9 +1,11 @@
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { config } from 'dotenv';
-import { User } from '../users/entities/user.entity';
+import { Customer } from '../customers/entities/customer.entity';
 import { Product } from '../products/entities/product.entity';
 import { Category } from '../categories/entities/category.entity';
+import { Order } from '../orders/entities/order.entity';
+import { OrderItem } from '../orders/entities/order-item.entity';
 import * as bcrypt from 'bcrypt';
 
 // Load environment variables
@@ -17,7 +19,7 @@ export const AppDataSource = new DataSource({
   username: configService.get('DB_USERNAME'),
   password: configService.get('DB_PASSWORD'),
   database: configService.get('DB_DATABASE'),
-  entities: [User, Product, Category],
+  entities: [Customer, Product, Category, Order, OrderItem],
   synchronize: false,
   migrations: [__dirname + '/migrations/*.{ts,js}'],
   migrationsTableName: 'migrations_history',
@@ -34,9 +36,9 @@ async function runMigrations() {
     console.log('Migrations have been run successfully');
 
     // Create admin user if it doesn't exist
-    const userRepository = AppDataSource.getRepository(User);
+    const customerRepository = AppDataSource.getRepository(Customer);
     const adminEmail = configService.get<string>('ADMIN_EMAIL');
-    const existingAdmin = await userRepository.findOne({
+    const existingAdmin = await customerRepository.findOne({
       where: { email: adminEmail },
     });
 
@@ -46,7 +48,7 @@ async function runMigrations() {
         10,
       );
 
-      await userRepository.save({
+      await customerRepository.save({
         name: 'Admin User',
         email: adminEmail,
         password: hashedPassword,

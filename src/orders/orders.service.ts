@@ -6,7 +6,7 @@ import { OrderItem } from './entities/order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { ProductsService } from '../products/products.service';
-import { UsersService } from '../users/users.service';
+import { CustomersService } from '../customers/customers.service';
 
 @Injectable()
 export class OrdersService {
@@ -16,12 +16,12 @@ export class OrdersService {
     @InjectRepository(OrderItem)
     private orderItemsRepository: Repository<OrderItem>,
     private productsService: ProductsService,
-    private usersService: UsersService,
+    private customersService: CustomersService,
   ) {}
 
   async findAll(): Promise<Order[]> {
     return this.ordersRepository.find({
-      relations: ['items', 'items.product', 'user'],
+      relations: ['items', 'items.product', 'customer'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -29,7 +29,7 @@ export class OrdersService {
   async findOne(id: string): Promise<Order> {
     const order = await this.ordersRepository.findOne({
       where: { id },
-      relations: ['items', 'items.product', 'user'],
+      relations: ['items', 'items.product', 'customer'],
     });
 
     if (!order) {
@@ -52,8 +52,10 @@ export class OrdersService {
     });
 
     // Associate with user if provided
-    if (createOrderDto?.userId) {
-      order.user = await this.usersService.findOne(createOrderDto.userId);
+    if (createOrderDto?.customerId) {
+      order.customer = await this.customersService.findOne(
+        createOrderDto.customerId,
+      );
     }
 
     // Calculate total and create order items

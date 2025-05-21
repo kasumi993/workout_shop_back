@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { User } from '../../users/entities/user.entity';
+import { Customer } from '../../customers/entities/customer.entity';
 import { Category } from '../../categories/entities/category.entity';
 import { Product } from '../../products/entities/product.entity';
 import * as bcrypt from 'bcrypt';
@@ -12,8 +12,8 @@ export class SeedService {
   private readonly logger = new Logger(SeedService.name);
 
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectRepository(Customer)
+    private customerRepository: Repository<Customer>,
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
     @InjectRepository(Product)
@@ -22,16 +22,16 @@ export class SeedService {
   ) {}
 
   async seed() {
-    await this.seedUsers();
+    await this.seedCustomers();
     await this.seedCategories();
     await this.seedProducts();
     this.logger.log('Seed terminé avec succès!');
   }
 
-  async seedUsers() {
-    const userCount = await this.userRepository.count();
+  async seedCustomers() {
+    const customerCount = await this.customerRepository.count();
 
-    if (userCount === 0) {
+    if (customerCount === 0) {
       this.logger.log("Création de l'utilisateur admin...");
 
       const adminEmail =
@@ -42,7 +42,7 @@ export class SeedService {
 
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-      await this.userRepository.save({
+      await this.customerRepository.save({
         name: 'Admin User',
         email: adminEmail,
         password: hashedPassword,
@@ -51,7 +51,7 @@ export class SeedService {
 
       this.logger.log('Utilisateur admin créé avec succès!');
     } else {
-      this.logger.log(`${userCount} utilisateurs existent déjà, ignoré.`);
+      this.logger.log(`${customerCount} utilisateurs existent déjà, ignoré.`);
     }
   }
 

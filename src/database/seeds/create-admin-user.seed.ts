@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { User } from '../../users/entities/user.entity';
+import { Customer } from '../../customers/entities/customer.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -10,8 +10,8 @@ export class SeedService implements OnModuleInit {
   private readonly logger = new Logger(SeedService.name);
 
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectRepository(Customer)
+    private customerRepository: Repository<Customer>,
     private configService: ConfigService,
   ) {}
 
@@ -25,14 +25,14 @@ export class SeedService implements OnModuleInit {
     const adminPassword =
       this.configService.get<string>('ADMIN_PASSWORD') || 'admin';
 
-    const existingAdmin = await this.userRepository.findOne({
+    const existingAdmin = await this.customerRepository.findOne({
       where: { email: adminEmail },
     });
 
     if (!existingAdmin) {
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-      await this.userRepository.save({
+      await this.customerRepository.save({
         name: 'Admin User',
         email: adminEmail,
         password: hashedPassword,

@@ -48,5 +48,5 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsString()
-  userId?: string;
+  customerId?: string;
 }
