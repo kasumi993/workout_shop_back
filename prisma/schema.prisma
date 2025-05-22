@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  image     String?
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model Category {
+  id         String     @id @default(uuid())
+  name       String
+  parentId   String?
+  parent     Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children   Category[] @relation("CategoryToCategory")
+  properties Json       @default("[]") // Array<{name: string, values: string[]}> stored as JSON
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  products   Product[]
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  price       Decimal     @db.Decimal(10, 2)
+  images      String[]    @default([])
+  categoryId  String?
+  category    Category?   @relation(fields: [categoryId], references: [id])
+  properties  Json?       // Stored as JSON object
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  customerId    String?
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  name          String
+  email         String
+  city          String
+  postalCode    String
+  streetAddress String
+  country       String
+  paid          Boolean     @default(false)
+  total         Decimal     @db.Decimal(10, 2)
+  paymentId     String?
+  items         OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+}

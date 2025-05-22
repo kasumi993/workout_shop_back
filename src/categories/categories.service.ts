@@ -1,27 +1,29 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Category } from './entities/category.entity';
+import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Injectable()
 export class CategoriesService {
-  constructor(
-    @InjectRepository(Category)
-    private categoryRepository: Repository<Category>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  async findAll(): Promise<Category[]> {
-    return this.categoryRepository.find({
-      relations: ['parent', 'children'],
+  async findAll() {
+    return this.prisma.category.findMany({
+      include: {
+        parent: true,
+        children: true,
+      },
     });
   }
 
-  async findOne(id: string): Promise<Category> {
-    const category = await this.categoryRepository.findOne({
+  async findOne(id: string) {
+    const category = await this.prisma.category.findUnique({
       where: { id },
-      relations: ['parent', 'children'],
+      include: {
+        parent: true,
+        children: true,
+      },
     });
 
     if (!category) {
@@ -31,51 +33,62 @@ export class CategoriesService {
     return category;
   }
 
-  async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
-    const category = this.categoryRepository.create({
-      name: createCategoryDto.name,
-      properties: createCategoryDto.properties || [],
+  async create(createCategoryDto: CreateCategoryDto) {
+    const { name, parentId, properties } = createCategoryDto;
+
+    return this.prisma.category.create({
+      data: {
+        name,
+        parentId,
+        properties: properties || [],
+      },
+      include: {
+        parent: true,
+      },
     });
-
-    // Set parent if provided
-    if (createCategoryDto.parentId) {
-      const parent = await this.findOne(createCategoryDto.parentId);
-      category.parent = parent;
-    }
-
-    return this.categoryRepository.save(category);
   }
 
-  async update(
-    id: string,
-    updateCategoryDto: UpdateCategoryDto,
-  ): Promise<Category> {
-    const category = await this.findOne(id);
+  async update(id: string, updateCategoryDto: UpdateCategoryDto) {
+    // Verify category exists
+    await this.findOne(id);
 
-    // Update basic properties
-    if (updateCategoryDto.name) {
-      category.name = updateCategoryDto.name;
+    const { name, parentId, properties } = updateCategoryDto;
+
+    // Build the data object dynamically
+    const data: Prisma.CategoryUpdateInput = {};
+
+    if (name !== undefined) {
+      data.name = name;
     }
 
-    if (updateCategoryDto.properties) {
-      category.properties = updateCategoryDto.properties;
+    if (properties !== undefined) {
+      data.properties = properties;
     }
 
-    // Update parent relationship if provided
-    if (updateCategoryDto.parentId !== undefined) {
-      if (updateCategoryDto.parentId) {
-        const parent = await this.findOne(updateCategoryDto.parentId);
-        category.parent = parent;
+    if (parentId !== undefined) {
+      if (parentId) {
+        data.parent = { connect: { id: parentId } };
       } else {
-        category.parent = null;
+        data.parent = { disconnect: true };
       }
     }
 
-    return this.categoryRepository.save(category);
+    return this.prisma.category.update({
+      where: { id },
+      data,
+      include: {
+        parent: true,
+        children: true,
+      },
+    });
   }
 
-  async remove(id: string): Promise<void> {
-    const category = await this.findOne(id);
-    await this.categoryRepository.remove(category);
+  async remove(id: string) {
+    // Verify category exists
+    await this.findOne(id);
+
+    await this.prisma.category.delete({
+      where: { id },
+    });
   }
 }

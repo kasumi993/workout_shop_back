@@ -1,29 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Product } from './entities/product.entity';
+import { PrismaService } from '../prisma/prisma.service';
+import { Product, Prisma } from '@prisma/client';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { CategoriesService } from '../categories/categories.service';
 
 @Injectable()
 export class ProductsService {
-  constructor(
-    @InjectRepository(Product)
-    private productsRepository: Repository<Product>,
-    private categoriesService: CategoriesService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async findAll(): Promise<Product[]> {
-    return this.productsRepository.find({
-      relations: ['category'],
+    return this.prisma.product.findMany({
+      include: {
+        category: true,
+      },
     });
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productsRepository.findOne({
+    const product = await this.prisma.product.findUnique({
       where: { id },
-      relations: ['category'],
+      include: {
+        category: true,
+      },
     });
 
     if (!product) {
@@ -34,67 +32,63 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const product = this.productsRepository.create({
-      title: createProductDto.title,
-      description: createProductDto.description,
-      price: createProductDto.price,
-      images: createProductDto.images || [],
-      properties: createProductDto.properties || {},
+    const { title, description, price, images, categoryId, properties } =
+      createProductDto;
+
+    return this.prisma.product.create({
+      data: {
+        title,
+        description,
+        price,
+        images: images || [],
+        category: categoryId ? { connect: { id: categoryId } } : undefined,
+        properties: properties || {},
+      },
+      include: {
+        category: true,
+      },
     });
-
-    // Set category if provided
-    if (createProductDto.categoryId) {
-      product.category = await this.categoriesService.findOne(
-        createProductDto.categoryId,
-      );
-    }
-
-    return this.productsRepository.save(product);
   }
 
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
   ): Promise<Product> {
-    const product = await this.findOne(id);
+    // Verify product exists
+    await this.findOne(id);
 
-    // Update basic properties
-    if (updateProductDto.title !== undefined) {
-      product.title = updateProductDto.title;
+    const { title, description, price, images, categoryId, properties } =
+      updateProductDto;
+
+    const data: Prisma.ProductUpdateInput = {};
+
+    if (title !== undefined) data.title = title;
+    if (description !== undefined) data.description = description;
+    if (price !== undefined) data.price = price;
+    if (images !== undefined) data.images = images;
+    if (properties !== undefined) data.properties = properties;
+
+    if (categoryId !== undefined) {
+      data.category = categoryId
+        ? { connect: { id: categoryId } }
+        : { disconnect: true };
     }
 
-    if (updateProductDto.description !== undefined) {
-      product.description = updateProductDto.description;
-    }
-
-    if (updateProductDto.price !== undefined) {
-      product.price = updateProductDto.price;
-    }
-
-    if (updateProductDto.images !== undefined) {
-      product.images = updateProductDto.images;
-    }
-
-    if (updateProductDto.properties !== undefined) {
-      product.properties = updateProductDto.properties;
-    }
-
-    // Update category if provided
-    if (updateProductDto.categoryId !== undefined) {
-      if (updateProductDto.categoryId) {
-        product.category = await this.categoriesService.findOne(
-          updateProductDto.categoryId,
-        );
-      } else {
-        product.category = null;
-      }
-    }
-
-    return this.productsRepository.save(product);
+    return this.prisma.product.update({
+      where: { id },
+      data,
+      include: {
+        category: true,
+      },
+    });
   }
 
   async remove(id: string): Promise<void> {
-    const product = await this.findOne(id);
-    await this.productsRepository.remove(product);
+    // Verify product exists
+    await this.findOne(id);
+
+    await this.prisma.product.delete({
+      where: { id },
+    });
   }
 }

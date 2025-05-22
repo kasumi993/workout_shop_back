@@ -1,35 +1,40 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
-import { OrderItem } from './entities/order-item.entity';
+import { PrismaService } from '../prisma/prisma.service';
+import { Order, Prisma } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { ProductsService } from '../products/products.service';
-import { CustomersService } from '../customers/customers.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(
-    @InjectRepository(Order)
-    private ordersRepository: Repository<Order>,
-    @InjectRepository(OrderItem)
-    private orderItemsRepository: Repository<OrderItem>,
-    private productsService: ProductsService,
-    private customersService: CustomersService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async findAll(): Promise<Order[]> {
-    return this.ordersRepository.find({
-      relations: ['items', 'items.product', 'customer'],
-      order: { createdAt: 'DESC' },
+    return this.prisma.order.findMany({
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
   }
 
   async findOne(id: string): Promise<Order> {
-    const order = await this.ordersRepository.findOne({
+    const order = await this.prisma.order.findUnique({
       where: { id },
-      relations: ['items', 'items.product', 'customer'],
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
     });
 
     if (!order) {
@@ -40,88 +45,122 @@ export class OrdersService {
   }
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
-    // Create new order
-    const order = this.ordersRepository.create({
-      name: createOrderDto.name,
-      email: createOrderDto.email,
-      city: createOrderDto.city,
-      postalCode: createOrderDto?.postalCode,
-      streetAddress: createOrderDto?.streetAddress,
-      country: createOrderDto?.country,
-      paid: false,
-    });
+    const {
+      name,
+      email,
+      city,
+      postalCode,
+      streetAddress,
+      country,
+      items,
+      customerId,
+    } = createOrderDto;
 
-    // Associate with user if provided
-    if (createOrderDto?.customerId) {
-      order.customer = await this.customersService.findOne(
-        createOrderDto.customerId,
-      );
-    }
-
-    // Calculate total and create order items
+    // Calculate total and prepare order items
     let total = 0;
-    const orderItems: OrderItem[] = [];
+    const orderItems: Prisma.OrderItemCreateManyOrderInput[] = [];
 
-    for (const item of createOrderDto?.items ?? []) {
+    for (const item of items || []) {
       if (!item?.productId) {
         throw new Error('Product ID is required for order items');
       }
-      const product = await this.productsService.findOne(item.productId);
 
-      const orderItem = this.orderItemsRepository.create({
-        product,
-        quantity: item?.quantity,
-        price: product.price,
+      // Get product to get its price
+      const product = await this.prisma.product.findUnique({
+        where: { id: item.productId },
       });
 
-      total += product.price * item?.quantity;
-      orderItems.push(orderItem);
+      if (!product) {
+        throw new NotFoundException(
+          `Product with ID ${item.productId} not found`,
+        );
+      }
+
+      total += product.price.toNumber() * item.quantity;
+
+      orderItems.push({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: product.price,
+      });
     }
 
-    order.total = total;
-
-    // Save order first to get ID
-    const savedOrder = await this.ordersRepository.save(order);
-
-    // Associate order items with the order and save them
-    for (const item of orderItems) {
-      item.order = savedOrder;
-      await this.orderItemsRepository.save(item);
-    }
-
-    // Fetch complete order with items
-    return this.findOne(savedOrder.id);
+    // Create order with items in a transaction
+    return this.prisma.order.create({
+      data: {
+        name,
+        email,
+        city,
+        postalCode,
+        streetAddress,
+        country,
+        paid: false,
+        total,
+        customer: customerId ? { connect: { id: customerId } } : undefined,
+        items: {
+          createMany: {
+            data: orderItems,
+          },
+        },
+      },
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
   }
 
   async update(id: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
-    const order = await this.findOne(id);
+    // Verify order exists
+    await this.findOne(id);
 
-    // Update basic fields
-    if (updateOrderDto.name) order.name = updateOrderDto.name;
-    if (updateOrderDto.email) order.email = updateOrderDto.email;
-    if (updateOrderDto.city) order.city = updateOrderDto.city;
-    if (updateOrderDto.postalCode) order.postalCode = updateOrderDto.postalCode;
-    if (updateOrderDto.streetAddress)
-      order.streetAddress = updateOrderDto.streetAddress;
-    if (updateOrderDto.country) order.country = updateOrderDto.country;
-    if (updateOrderDto.paid !== undefined) order.paid = updateOrderDto.paid;
-    if (updateOrderDto.paymentId) order.paymentId = updateOrderDto.paymentId;
+    const {
+      name,
+      email,
+      city,
+      postalCode,
+      streetAddress,
+      country,
+      paid,
+      paymentId,
+    } = updateOrderDto;
 
-    // Save the updated order
-    await this.ordersRepository.save(order);
+    const data: Prisma.OrderUpdateInput = {};
 
-    return this.findOne(id);
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
+    if (city !== undefined) data.city = city;
+    if (postalCode !== undefined) data.postalCode = postalCode;
+    if (streetAddress !== undefined) data.streetAddress = streetAddress;
+    if (country !== undefined) data.country = country;
+    if (paid !== undefined) data.paid = paid;
+    if (paymentId !== undefined) data.paymentId = paymentId;
+
+    return this.prisma.order.update({
+      where: { id },
+      data,
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
   }
 
   async remove(id: string): Promise<void> {
-    const order = await this.findOne(id);
+    // Verify order exists
+    await this.findOne(id);
 
-    // Delete associated order items
-    if (order.items && order.items.length > 0) {
-      await this.orderItemsRepository.remove(order.items);
-    }
-
-    // Delete the order
-    await this.ordersRepository.remove(order);
+    // Prisma will automatically delete related OrderItems because of the cascade delete
+    await this.prisma.order.delete({
+      where: { id },
+    });
   }
 }
