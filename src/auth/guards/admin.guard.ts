@@ -5,18 +5,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-
-// Define a proper interface for the user
-interface UserWithAdmin {
-  id: string;
-  email: string;
-  isAdmin: boolean;
-  [key: string]: any; // For any additional properties
-}
+import { JwtUser } from '../interfaces/jwt.interfaces';
 
 // Define a proper interface for the request
 interface RequestWithUser extends Request {
-  user?: UserWithAdmin;
+  user?: JwtUser;
 }
 
 @Injectable()

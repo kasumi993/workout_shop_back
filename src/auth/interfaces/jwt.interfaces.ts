@@ -9,6 +9,7 @@ export interface JwtPayload {
   email: string; // User email
   iat?: number; // Issued at timestamp
   exp?: number; // Expiration timestamp
+  isAdmin: boolean; // Admin status
 }
 
 /**
