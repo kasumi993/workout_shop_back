@@ -12,6 +12,8 @@ import { CustomersService } from './customers.service';
 import { Customer } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 @Controller('customers')
 export class CustomersController {
@@ -30,7 +32,7 @@ export class CustomersController {
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Post()
-  create(@Body() customerData: Partial<Customer>): Promise<Customer> {
+  create(@Body() customerData: CreateCustomerDto): Promise<Customer> {
     return this.customersService.create(customerData);
   }
 
@@ -38,7 +40,7 @@ export class CustomersController {
   @Patch(':id')
   update(
     @Param('id') id: string,
-    @Body() customerData: Partial<Customer>,
+    @Body() customerData: UpdateCustomerDto,
   ): Promise<Customer> {
     return this.customersService.update(id, customerData);
   }
