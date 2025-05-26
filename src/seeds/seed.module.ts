@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { SeedService } from './seed.service';
+import { CategorySeedService } from './category-seed.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
@@ -10,7 +11,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     }),
     PrismaModule,
   ],
-  providers: [SeedService],
-  exports: [SeedService],
+  providers: [SeedService, CategorySeedService],
+  exports: [SeedService, CategorySeedService],
 })
 export class SeedModule {}
