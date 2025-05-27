@@ -104,6 +104,7 @@ export class UploadService {
     if (!fileUrl) {
       throw new Error('Missing file link to delete');
     }
+    console.log('Deleting file from S3:', fileUrl);
 
     try {
       const parts = fileUrl.split('/');

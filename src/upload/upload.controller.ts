@@ -1,6 +1,7 @@
-import { Controller, Post, Delete, Param, Req } from '@nestjs/common';
+import { Controller, Post, Delete, Body, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { UploadService } from './upload.service';
+import { fileDto } from './dto/file.dto';
 
 @Controller('upload')
 export class UploadController {
@@ -11,8 +12,8 @@ export class UploadController {
     return this.uploadService.uploadFiles(request);
   }
 
-  @Delete(':id')
-  delete(@Param('id') id: string): Promise<void> {
-    return this.uploadService.deleteFile(id);
+  @Delete()
+  delete(@Body() data: fileDto): Promise<void> {
+    return this.uploadService.deleteFile(data.fileUrl);
   }
 }
