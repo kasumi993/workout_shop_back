@@ -12,14 +12,15 @@ import { Request } from 'express';
 
 @Injectable()
 export class UploadService {
-  private s3Client: S3Client;
+  private r2Client: S3Client; // Still using S3Client as R2 is S3-compatible
 
   constructor(private configService: ConfigService) {
-    this.s3Client = new S3Client({
-      region: this.configService.get('AWS_REGION') ?? '',
+    this.r2Client = new S3Client({
+      region: 'auto', // R2 uses 'auto' as region
+      endpoint: this.configService.get('R2_ENDPOINT'),
       credentials: {
-        accessKeyId: this.configService.get('S3_ACCESS_KEY') ?? '',
-        secretAccessKey: this.configService.get('S3_SECRET_KEY') ?? '',
+        accessKeyId: this.configService.get('R2_ACCESS_KEY_ID') ?? '',
+        secretAccessKey: this.configService.get('R2_SECRET_ACCESS_KEY') ?? '',
       },
     });
   }
@@ -49,15 +50,14 @@ export class UploadService {
         const newFileName = `${Date.now()}-${file.originalFilename}`;
         const fileStream = fs.createReadStream(file.path);
 
-        await this.s3Client.send(
+        await this.r2Client.send(
           new PutObjectCommand({
-            Bucket: this.configService.get('S3_BUCKET'),
+            Bucket: this.configService.get('R2_BUCKET'),
             Key: newFileName,
             Body: fileStream,
-            ACL: 'public-read',
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            // Note: R2 doesn't support ACL like S3, files are private by default
+            // You'll need to set up custom domain or public access if needed
             ContentType:
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
               mime.lookup(file.originalFilename) || 'application/octet-stream',
           }),
         );
@@ -65,9 +65,8 @@ export class UploadService {
         // Clean up temp file
         fs.unlinkSync(file.path);
 
-        links.push(
-          `https://${this.configService.get('S3_BUCKET')}.s3.${this.configService.get('AWS_REGION')}.amazonaws.com/${newFileName}`,
-        );
+        // Use R2 public subdomain
+        links.push(`${this.configService.get('R2_PUBLIC_URL')}/${newFileName}`);
       }
     }
 
@@ -84,41 +83,37 @@ export class UploadService {
 
     const newFileName = `${Date.now()}-${file.originalname}`;
 
-    await this.s3Client.send(
+    await this.r2Client.send(
       new PutObjectCommand({
-        Bucket: this.configService.get('S3_BUCKET'),
+        Bucket: this.configService.get('R2_BUCKET'),
         Key: newFileName,
         Body: file.buffer,
-        ACL: 'public-read',
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         ContentType:
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           mime.lookup(file.originalname) || 'application/octet-stream',
       }),
     );
-
-    return `https://${this.configService.get('S3_BUCKET')}.s3.${this.configService.get('AWS_REGION')}.amazonaws.com/${newFileName}`;
+    return `${this.configService.get('R2_PUBLIC_URL')}/${newFileName}`;
   }
 
   async deleteFile(fileUrl: string): Promise<void> {
     if (!fileUrl) {
       throw new Error('Missing file link to delete');
     }
-    console.log('Deleting file from S3:', fileUrl);
+    console.log('Deleting file from R2:', fileUrl);
 
     try {
       const parts = fileUrl.split('/');
       const key = parts[parts.length - 1];
 
-      await this.s3Client.send(
+      await this.r2Client.send(
         new DeleteObjectCommand({
-          Bucket: this.configService.get('S3_BUCKET'),
+          Bucket: this.configService.get('R2_BUCKET'),
           Key: key,
         }),
       );
     } catch (error) {
-      console.error('Error deleting file from S3:', error);
-      throw new Error('Failed to delete file from S3');
+      console.error('Error deleting file from R2:', error);
+      throw new Error('Failed to delete file from R2');
     }
   }
 }
