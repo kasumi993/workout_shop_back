@@ -14,8 +14,6 @@ export class SeedService {
 
   async seed() {
     await this.seedCustomers();
-    await this.seedCategories();
-    await this.seedProducts();
     this.logger.log('Seed completed successfully!');
   }
 
@@ -39,74 +37,13 @@ export class SeedService {
           email: adminEmail,
           password: hashedPassword,
           isAdmin: true,
+          googleId: null,
         },
       });
 
       this.logger.log('Admin user created successfully!');
     } else {
       this.logger.log(`${customerCount} users already exist, skipping.`);
-    }
-  }
-
-  async seedCategories() {
-    const categoryCount = await this.prisma.category.count();
-
-    if (categoryCount === 0) {
-      this.logger.log('Creating categories...');
-
-      // Main category: Workout Equipment
-      const workoutEquipment = await this.prisma.category.create({
-        data: {
-          name: "Équipement d'entraînement",
-          properties: [
-            { name: 'couleur', values: ['noir', 'bleu', 'rouge', 'gris'] },
-            { name: 'poids', values: ['léger', 'moyen', 'lourd'] },
-          ],
-        },
-      });
-
-      // Subcategories
-      await this.prisma.category.createMany({
-        data: [
-          {
-            name: 'Poids libres',
-            parentId: workoutEquipment.id,
-            properties: [
-              { name: 'matériau', values: ['fonte', 'caoutchouc', 'vinyle'] },
-              { name: 'poids_kg', values: ['2', '5', '10', '15', '20'] },
-            ],
-          },
-          {
-            name: 'Équipement cardio',
-            parentId: workoutEquipment.id,
-            properties: [
-              {
-                name: 'type',
-                values: ['tapis de course', 'vélo', 'elliptique', 'rameur'],
-              },
-              {
-                name: 'niveau',
-                values: ['débutant', 'intermédiaire', 'avancé'],
-              },
-            ],
-          },
-          {
-            name: 'Yoga et Pilates',
-            parentId: workoutEquipment.id,
-            properties: [
-              {
-                name: 'matériau',
-                values: ['PVC', 'caoutchouc naturel', 'TPE'],
-              },
-              { name: 'épaisseur', values: ['4mm', '6mm', '8mm'] },
-            ],
-          },
-        ],
-      });
-
-      this.logger.log('Categories created successfully!');
-    } else {
-      this.logger.log(`${categoryCount} categories already exist, skipping.`);
     }
   }
 
