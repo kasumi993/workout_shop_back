@@ -9,6 +9,14 @@ async function bootstrap() {
   // Get ConfigService
   const configService = app.get(ConfigService);
 
+  const frontendUrl = configService.get<string>('FRONTEND_URL');
+  const adminUrl = configService.get<string>('ADMIN_URL');
+
+  console.log('🔍 CORS Debug:');
+  console.log('Raw FRONTEND_URL:', JSON.stringify(frontendUrl));
+  console.log('Raw ADMIN_URL:', JSON.stringify(adminUrl));
+  console.log('Origins array:', JSON.stringify([frontendUrl, adminUrl]));
+
   // Enable CORS
   app.enableCors({
     origin: [
