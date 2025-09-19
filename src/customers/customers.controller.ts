@@ -10,8 +10,7 @@ import {
 } from '@nestjs/common';
 import { CustomersService } from './customers.service';
 import { Customer } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
@@ -24,19 +23,19 @@ export class CustomersController {
     return this.customersService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(SupabaseAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string): Promise<Customer> {
     return this.customersService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(SupabaseAuthGuard)
   @Post()
   create(@Body() customerData: CreateCustomerDto): Promise<Customer> {
     return this.customersService.create(customerData);
   }
 
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(SupabaseAuthGuard)
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -45,7 +44,7 @@ export class CustomersController {
     return this.customersService.update(id, customerData);
   }
 
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(SupabaseAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string): Promise<void> {
     return this.customersService.remove(id);

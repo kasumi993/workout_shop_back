@@ -9,6 +9,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { UploadModule } from './upload/upload.module';
+import { SupabaseModule } from './supabase/supabase.module';
+import { UserProfilesModule } from './user-profiles/user-profiles.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { UploadModule } from './upload/upload.module';
       isGlobal: true,
     }),
     PrismaModule,
+    SupabaseModule,
+    UserProfilesModule,
     ProductsModule,
     CategoriesModule,
     CustomersModule,

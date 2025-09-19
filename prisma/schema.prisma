@@ -11,17 +11,33 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// Customer table kept for backward compatibility during transition
+// Will be removed after full migration to Supabase Auth + UserProfile
 model Customer {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
-  password  String
+  password  String?
   image     String?
   googleId  String?  @unique
   isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
+}
+
+// New UserProfile model for customer business data
+// user_id references auth.users.id from Supabase
+model UserProfile {
+  id       String   @id @default(uuid())
+  userId   String   @unique @map("user_id") // References Supabase auth.users.id
+  name     String
+  email    String   @unique
+  image    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("UserProfile")
 }
 
 model Category {
@@ -51,21 +67,21 @@ model Product {
 }
 
 model Order {
-  id            String      @id @default(uuid())
+  id            String       @id @default(uuid())
   customerId    String?
-  customer      Customer?   @relation(fields: [customerId], references: [id])
+  customer      Customer?    @relation(fields: [customerId], references: [id])
   name          String
   email         String
   city          String
   postalCode    String
   streetAddress String
   country       String
-  paid          Boolean     @default(false)
-  total         Decimal     @db.Decimal(10, 2)
+  paid          Boolean      @default(false)
+  total         Decimal      @db.Decimal(10, 2)
   paymentId     String?
   items         OrderItem[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model OrderItem {
